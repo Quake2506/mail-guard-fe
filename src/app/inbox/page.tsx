@@ -17,7 +17,11 @@ import {
     DialogContent,
     DialogActions,
     Button,
+    Fab,
+    TextField,
+    DialogContentText,
 } from '@mui/material';
+import { Plus } from 'lucide-react';
 
 import { Email } from '@/common/types/email';
 
@@ -27,6 +31,13 @@ export default function InboxPage() {
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState('');
     const [selectedEmail, setSelectedEmail] = React.useState<Email | null>(null);
+    const [composeOpen, setComposeOpen] = React.useState(false);
+    const [emailForm, setEmailForm] = React.useState({
+        receiver_email: '',
+        subject: '',
+        body: '',
+        is_spam: false
+    });
 
     React.useEffect(() => {
         const fetchEmails = async () => {
@@ -82,10 +93,59 @@ export default function InboxPage() {
         }
     });
 
+    const handleComposeClick = () => {
+        setComposeOpen(true);
+    };
+
+    const handleComposeClose = () => {
+        setComposeOpen(false);
+        setEmailForm({ receiver_email: '', subject: '', body: '', is_spam: false });
+    };
+
+    const handleEmailFormChange = (field: keyof typeof emailForm) => (event: React.ChangeEvent<HTMLInputElement>) => {
+        setEmailForm(prev => ({
+            ...prev,
+            [field]: event.target.value
+        }));
+    };
+
+    const handleSendEmail = async () => {
+        try {
+            const accessToken = document.cookie.split('access_token=')[1]?.split(';')[0];
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/emails/send`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(emailForm)
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to send email');
+            }
+
+            handleComposeClose();
+            // Optionally refresh the email list
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to send email');
+        }
+    };
+
     return (
-        <Container maxWidth="sm" sx={{minHeight:'100vh' }}>
+        <Container maxWidth="sm" sx={{minHeight:'100vh', position: 'relative' }}>
             <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
-                <Tabs value={tabValue} onChange={handleTabChange}>
+                <Tabs 
+                    value={tabValue} 
+                    onChange={handleTabChange} 
+                    variant="fullWidth"
+                    textColor="inherit"
+                    sx={{
+                        '& .MuiTab-root': { color: '#666666' },
+                        '& .Mui-selected': { color: 'black', fontWeight: 'semi-bold' },
+                        '& .MuiTabs-indicator': { backgroundColor: 'black' }
+                    }}
+                >
                     <Tab label="Inbox" />
                     <Tab label="Spam Detected" />
                 </Tabs>
@@ -95,8 +155,6 @@ export default function InboxPage() {
                 <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
                     <CircularProgress />
                 </Box>
-            ) : error ? (
-                <Alert severity="error">{error}</Alert>
             ) : (
                 <List>
                     {filteredEmails.map((email, index) => (
@@ -191,6 +249,62 @@ export default function InboxPage() {
                         </DialogActions>
                     </>
                 )}
+            </Dialog>
+            <Fab 
+                color="primary" 
+                sx={{ 
+                    position: 'fixed', 
+                    bottom: 16, 
+                    right: 16,
+                    bgcolor: 'black',
+                    '&:hover': {
+                        bgcolor: '#333'
+                    }
+                }}
+                onClick={handleComposeClick}
+            >
+                <Plus />
+            </Fab>
+
+            <Dialog open={composeOpen} onClose={handleComposeClose} fullWidth maxWidth="sm">
+                <DialogTitle>Send Email</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        Compose your email below
+                    </DialogContentText>
+                    <TextField
+                        autoFocus
+                        margin="dense"
+                        label="To"
+                        type="email"
+                        fullWidth
+                        value={emailForm.receiver_email}
+                        onChange={handleEmailFormChange('receiver_email')}
+                    />
+                    <TextField
+                        margin="dense"
+                        label="Subject"
+                        type="text"
+                        fullWidth
+                        value={emailForm.subject}
+                        onChange={handleEmailFormChange('subject')}
+                    />
+                    <TextField
+                        margin="dense"
+                        label="Message"
+                        multiline
+                        rows={4}
+                        fullWidth
+                        value={emailForm.body}
+                        onChange={handleEmailFormChange('body')}
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleComposeClose} sx={{ bgcolor: 'white', '&:hover': { bgcolor: '#ddd' }, color: 'black' }}>Cancel</Button>
+                    <Button onClick={handleSendEmail} variant="contained" sx={{ bgcolor: 'black', '&:hover': { bgcolor: '#333' } }}>
+                        Send
+                    </Button>
+                </DialogActions>
             </Dialog>
         </Container>
     );
