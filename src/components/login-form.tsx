@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { setCookie } from 'cookies-next/client';
 import {
     Box,
     Button,
@@ -8,13 +9,15 @@ import {
     Container,
     Paper,
 } from '@mui/material';
+import { useRouter } from 'next/navigation';
 
 interface LoginFormData {
     username: string;
     password: string;
 }
 
-export function LoginForm()  {
+export function LoginForm() {
+    const router = useRouter();
     const [formData, setFormData] = useState<LoginFormData>({
         username: '',
         password: '',
@@ -34,25 +37,37 @@ export function LoginForm()  {
         setError('');
 
         try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/login`, {
-            method: 'POST',
-            headers: {
-            'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(formData),
-        });
-        console.log(process.env.NEXT_PUBLIC_API_URL);
+            const formBody = new URLSearchParams({
+                username: formData.username,
+                password: formData.password
+            }).toString();
 
-        if (!response.ok) {
-            throw new Error('Login failed');
-        }
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: formBody,
+            });
 
-        const data = await response.json();
-        // Handle successful login here (e.g., store token, redirect)
-        console.log('Login successful:', data);
+            if (!response.ok) {
+                throw new Error('Login failed');
+            }
+
+            const data = await response.json();
+            // Store the access token in a cookie
+            setCookie('access_token', data.access_token, {
+                maxAge: 60 * 60 * 24, // 24 hours
+                secure: true, // Only send over HTTPS
+                sameSite: 'strict' // Protect against CSRF
+            });
+
+            console.log('Login successful:', data);
+            // Redirect to inbox page
+            router.push('/inbox');
         } catch (err) {
-        setError('Invalid username or password');
-        console.error('Login error:', err);
+            setError('Invalid username or password');
+            console.error('Login error:', err);
         }
     };
 
