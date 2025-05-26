@@ -11,6 +11,11 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get('access_token');
   const { pathname } = request.nextUrl;
 
+  // Redirect root path to inbox
+  if (pathname === '/') {
+    return NextResponse.redirect(new URL('/inbox', request.url));
+  }
+
   // Allow access to public routes regardless of authentication status
   if (publicRoutes.includes(pathname)) {
     return NextResponse.next();
@@ -23,7 +28,7 @@ export function middleware(request: NextRequest) {
 
   // If authenticated and trying to access login/register, redirect to home
   if (token && publicRoutes.includes(pathname)) {
-    return NextResponse.redirect(new URL('/', request.url));
+    return NextResponse.redirect(new URL('/inbox', request.url));
   }
 
   return NextResponse.next();
@@ -32,13 +37,6 @@ export function middleware(request: NextRequest) {
 // Configure which routes should be handled by this middleware
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
     '/((?!api|_next/static|_next/image|favicon.ico|next.svg).*)'
   ]
 };
