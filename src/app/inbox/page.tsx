@@ -70,7 +70,31 @@ export default function InboxPage() {
         setTabValue(newValue);
     };
 
-    const handleEmailClick = (email: Email) => {
+    // const handleEmailClick = (email: Email) => {
+    //     setSelectedEmail(email);
+    // };
+
+    const handleEmailClick = async (email: Email) => {
+        if (!email.is_read) {
+            try {
+                const accessToken = document.cookie.split('access_token=')[1]?.split(';')[0];
+                await fetch(`${process.env.NEXT_PUBLIC_API_URL}/emails/${email.id}/read`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
+                
+                // Update the email list to mark this email as read
+                setEmails(prevEmails => 
+                    prevEmails.map(e => 
+                        e.id === email.id ? { ...e, is_read: true } : e
+                    )
+                );
+            } catch (err) {
+                console.error('Failed to mark email as read:', err);
+            }
+        }
         setSelectedEmail(email);
     };
 
@@ -80,8 +104,14 @@ export default function InboxPage() {
 
     const truncateBody = (body: string) => {
         const words = body.split(' ');
-        if (words.length <= 20) return body;
-        return words.slice(0, 20).join(' ') + '...';
+        if (words.length <= 15) { return body };
+        return words.slice(0, 15).join(' ') + '...';
+    };
+
+    const truncateEmail = (email: string) => {
+        const words = email;
+        if (words.length <= 20) { return email };
+        return words.slice(0, 20) + '...';
     };
 
     // Filter emails based on selected tab
@@ -132,6 +162,32 @@ export default function InboxPage() {
         }
     };
 
+    const handleMarkAsSpam = async (email: Email) => {
+        try {
+            const accessToken = document.cookie.split('access_token=')[1]?.split(';')[0];
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/emails/${email.id}/mark-spam`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to mark email as spam');
+            }
+
+            // Update the emails list to reflect the change
+            setEmails(prevEmails =>
+                prevEmails.map(e =>
+                    e.id === email.id ? { ...e, is_spam: true } : e
+                )
+            );
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to mark as spam');
+        }
+    };
+
     return (
         <Container maxWidth="sm" sx={{minHeight:'100vh', position: 'relative' }}>
             <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
@@ -164,8 +220,9 @@ export default function InboxPage() {
                                 mb: 1,
                                 borderRadius: 1,
                                 cursor: 'pointer',
+                                backgroundColor: email.is_read ? 'transparent' : 'rgba(25, 118, 210, 0.08)',
                                 '&:hover': {
-                                    backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                                    backgroundColor: email.is_read ? 'rgba(0, 0, 0, 0.04)' : 'rgba(25, 118, 210, 0.12)',
                                 },
                             }}
                             onClick={() => handleEmailClick(email)}
@@ -177,24 +234,38 @@ export default function InboxPage() {
                                         component="div" 
                                         sx={{ 
                                             color: 'black',
-                                            fontWeight: 500
+                                            fontWeight: email.is_read ? 400 : 600
                                         }}
                                     >
-                                        Sender: {email.sender.email}
+                                        {truncateEmail(email.sender.email)}
                                     </Typography>
-                                    {email.is_spam ? (
-                                        <Chip
-                                            label="Spam"
-                                            color="error"
-                                            size="small"
-                                        />
-                                    ) : (
-                                        <Chip
-                                            label="Not Spam"
-                                            size="small"
-                                            sx={{bgcolor: 'green', color: 'white'}}
-                                        />
-                                    )}
+                                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                        {email.is_spam ? (
+                                            <Chip
+                                                label="Spam"
+                                                size="small"
+                                                sx={{bgcolor: '#FPEFF0', color: '#7F4A47'}}
+                                            />
+                                        ) : (
+                                            <Chip
+                                                label="Not Spam"
+                                                size="small"
+                                                sx={{bgcolor: '#EDF5F0', color: '#2A4236'}}
+                                            />
+                                        )}
+                                        {!email.is_read && (
+                                            <Box
+                                                sx={{
+                                                    width: 8,
+                                                    height: 8,
+                                                    borderRadius: '50%',
+                                                    backgroundColor: '#1976d2',
+                                                    marginRight: 1
+                                                }}
+                                            />
+                                        )}
+                                    </Box>
+                                    
                                 </Box>
                                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                                     <Typography 
@@ -202,7 +273,7 @@ export default function InboxPage() {
                                         component="div"
                                         sx={{color: 'black'}}
                                     >
-                                        Subject: {email.subject}
+                                        {email.subject}
                                     </Typography>
                                     <Typography 
                                         variant="body2" 
@@ -218,34 +289,36 @@ export default function InboxPage() {
                 </List>
             )}
 
-            <Dialog
-                open={selectedEmail !== null}
-                onClose={handleCloseDialog}
-                maxWidth="md"
-                fullWidth
-            >
+            <Dialog open={selectedEmail !== null} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
                 {selectedEmail && (
                     <>
                         <DialogTitle>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Box display="flex" justifyContent="space-between" alignItems="center">
                                 <Typography variant="h6">{selectedEmail.subject}</Typography>
-                                {selectedEmail.is_spam ? (
-                                    <Chip label="Spam" color="error" />
-                                ) : (
-                                    <Chip label="Not Spam" sx={{bgcolor: 'green', color: 'white'}} />
-                                )}
                             </Box>
                         </DialogTitle>
                         <DialogContent>
-                            <Typography variant="subtitle1" sx={{ mb: 2 }}>
+                            <Typography variant="subtitle1" gutterBottom>
                                 From: {selectedEmail.sender.email}
                             </Typography>
-                            <Typography variant="body1">
+                            <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
                                 {selectedEmail.body}
                             </Typography>
                         </DialogContent>
                         <DialogActions>
-                            <Button onClick={handleCloseDialog}>Close</Button>
+                                {!selectedEmail.is_spam && (
+                                    <Button
+                                        variant="outlined"
+                                        sx={{bgcolor:'#AB0000', color:'white'}}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleMarkAsSpam(selectedEmail);
+                                        }}
+                                    >
+                                        Mark as Spam
+                                    </Button>
+                                )}
+                            <Button onClick={handleCloseDialog} sx={{bgcolor:'black', color:'white'}}>Close</Button>
                         </DialogActions>
                     </>
                 )}

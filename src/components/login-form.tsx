@@ -55,11 +55,16 @@ export function LoginForm() {
             }
 
             const data = await response.json();
-            // Store the access token in a cookie
+            // Store the access token and email in cookies
             setCookie('access_token', data.access_token, {
                 maxAge: 60 * 60 * 24, // 24 hours
                 secure: true, // Only send over HTTPS
                 sameSite: 'strict' // Protect against CSRF
+            });
+            setCookie('user_email', formData.username, {
+                maxAge: 60 * 60 * 24, // 24 hours
+                secure: true,
+                sameSite: 'strict'
             });
 
             console.log('Login successful:', data);
@@ -75,7 +80,7 @@ export function LoginForm() {
         <Container maxWidth="sm">
         <Box sx={{ mt: 8 }}>
             <Paper elevation={3} sx={{ p: 4 }}>
-            <Typography component="h1" variant="h5" align="center" gutterBottom>
+            <Typography component="h1" variant="h5" align="center" gutterBottom sx={{mb: 2}}>
                 Login
             </Typography>
             {error && (
@@ -85,42 +90,56 @@ export function LoginForm() {
             )}
             <Box component="form" onSubmit={handleSubmit}>
                 <FormControl fullWidth sx={{ mb: 2 }}>
-                <TextField
-                    required
-                    id="username"
-                    name="username"
-                    label="Username"
-                    value={formData.username}
-                    onChange={handleChange}
-                    autoComplete="username"
-                />
+                    <TextField
+                        required
+                        id="username"
+                        name="username"
+                        label="Username"
+                        value={formData.username}
+                        onChange={handleChange}
+                        autoComplete="username"
+                    />
                 </FormControl>
-                <FormControl fullWidth sx={{ mb: 3 }}>
-                <TextField
-                    required
-                    id="password"
-                    name="password"
-                    label="Password"
-                    type="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    autoComplete="current-password"
-                />
+                <FormControl fullWidth sx={{ mb: 2 }}>
+                    <TextField
+                        required
+                        id="password"
+                        name="password"
+                        type="password"
+                        label="Password"
+                        value={formData.password}
+                        onChange={handleChange}
+                        autoComplete="current-password"
+                    />
                 </FormControl>
+                <Box sx={{ textAlign: 'center', mb: 2 }}>
+                    <Typography variant="body2" color="text.secondary">
+                        Don't have an account?{' '}
+                        <Typography
+                            component="a"
+                            href="/register"
+                            variant="body2"
+                            sx={{
+                                color: 'primary.main',
+                                textDecoration: 'none',
+                                '&:hover': {
+                                    textDecoration: 'underline',
+                                    cursor: 'pointer'
+                                }
+                            }}
+                        >
+                            Register here
+                        </Typography>
+                    </Typography>
+                </Box>
                 <Button
                     type="submit"
                     fullWidth
                     variant="contained"
                     size="large"
-                    sx={{
-                        bgcolor: 'black',
-                        color: 'white',
-                        '&:hover': {
-                            bgcolor: '#333'
-                        }
-                    }}
+                    sx={{ bgcolor: 'black', color: 'white'}}
                 >
-                    Sign In
+                    Login
                 </Button>
             </Box>
             </Paper>
