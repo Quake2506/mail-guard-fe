@@ -58,7 +58,11 @@ export default function Navbar() {
   }
 
   return (
-    <AppBar position="static" sx={{ bgcolor: 'white', boxShadow: 1 }}>
+    <AppBar position="static" sx={{ 
+      bgcolor: 'white', 
+      boxShadow: 0,
+      borderBottom: '2px solid #bdbdbd'
+    }}>
       <Toolbar sx={{ justifyContent: 'space-between', margin:'5px 20px 5px 20px' }}>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <Image

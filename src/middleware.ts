@@ -4,17 +4,18 @@ import type { NextRequest } from 'next/server';
 // List of public routes that don't require authentication
 const publicRoutes = [
   '/login',
-  '/register'
+  '/register',
+  '/'
 ];
 
 export function middleware(request: NextRequest) {
   const token = request.cookies.get('access_token');
   const { pathname } = request.nextUrl;
 
-  // Redirect root path to inbox
-  if (pathname === '/') {
-    return NextResponse.redirect(new URL('/inbox', request.url));
-  }
+  // // Redirect root path to inbox
+  // if (pathname === '/') {
+  //   return NextResponse.redirect(new URL('/inbox', request.url));
+  // }
 
   // Allow access to public routes regardless of authentication status
   if (publicRoutes.includes(pathname)) {

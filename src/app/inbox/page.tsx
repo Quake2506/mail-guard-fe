@@ -28,6 +28,7 @@ import { Email } from '@/common/types/email';
 export default function InboxPage() {
     const [tabValue, setTabValue] = React.useState(0);
     const [emails, setEmails] = React.useState<Email[]>([]);
+    const [sentEmails, setSentEmails] = React.useState<Email[]>([]);
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState('');
     const [selectedEmail, setSelectedEmail] = React.useState<Email | null>(null);
@@ -42,20 +43,30 @@ export default function InboxPage() {
     React.useEffect(() => {
         const fetchEmails = async () => {
             try {
-                // Move cookie access inside useEffect where we're guaranteed to be on the client side
                 const accessToken = document.cookie.split('access_token=')[1]?.split(';')[0];
-                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/emails/inbox`, {
+                const inboxResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/emails/inbox`, {
                     headers: {
                         'Authorization': `Bearer ${accessToken}`
                     }
                 });
 
-                if (!response.ok) {
+                const sentResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/emails/sent`, {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
+
+                if (!inboxResponse.ok || !sentResponse.ok) {
                     throw new Error('Failed to fetch emails');
                 }
 
-                const data = await response.json();
-                setEmails(data);
+                const [inboxData, sentData] = await Promise.all([
+                    inboxResponse.json(),
+                    sentResponse.json()
+                ]);
+
+                setEmails(inboxData);
+                setSentEmails(sentData);
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'Failed to load emails');
             } finally {
@@ -115,13 +126,18 @@ export default function InboxPage() {
     };
 
     // Filter emails based on selected tab
-    const filteredEmails = emails.filter(email => {
-        if (tabValue === 0) { // Inbox tab
-            return true; // Show all emails
-        } else { // Spam tab
-            return email.is_spam;
+    const filteredEmails = React.useMemo(() => {
+        switch (tabValue) {
+            case 0: // Inbox tab
+                return emails;
+            case 1: // Sent tab
+                return sentEmails;
+            case 2: // Spam tab
+                return emails.filter(email => email.is_spam);
+            default:
+                return [];
         }
-    });
+    }, [tabValue, emails, sentEmails]);
 
     const handleComposeClick = () => {
         setComposeOpen(true);
@@ -203,7 +219,8 @@ export default function InboxPage() {
                     }}
                 >
                     <Tab label="Inbox" />
-                    <Tab label="Spam Detected" />
+                    <Tab label="Sent" />
+                    <Tab label="Spam" />
                 </Tabs>
             </Box>
 
@@ -220,9 +237,9 @@ export default function InboxPage() {
                                 mb: 1,
                                 borderRadius: 1,
                                 cursor: 'pointer',
-                                backgroundColor: email.is_read ? 'transparent' : 'rgba(25, 118, 210, 0.08)',
+                                backgroundColor: tabValue !== 1 && !email.is_read ? 'rgba(25, 118, 210, 0.08)' : 'transparent',
                                 '&:hover': {
-                                    backgroundColor: email.is_read ? 'rgba(0, 0, 0, 0.04)' : 'rgba(25, 118, 210, 0.12)',
+                                    backgroundColor: tabValue !== 1 && !email.is_read ? 'rgba(25, 118, 210, 0.12)' : 'rgba(0, 0, 0, 0.04)',
                                 },
                             }}
                             onClick={() => handleEmailClick(email)}
@@ -234,7 +251,7 @@ export default function InboxPage() {
                                         component="div" 
                                         sx={{ 
                                             color: 'black',
-                                            fontWeight: email.is_read ? 400 : 600
+                                            fontWeight: tabValue !== 1 && !email.is_read ? 600 : 400
                                         }}
                                     >
                                         {truncateEmail(email.sender.email)}
@@ -253,7 +270,7 @@ export default function InboxPage() {
                                                 sx={{bgcolor: '#EDF5F0', color: '#2A4236'}}
                                             />
                                         )}
-                                        {!email.is_read && (
+                                        {tabValue !== 1 && !email.is_read && (
                                             <Box
                                                 sx={{
                                                     width: 8,

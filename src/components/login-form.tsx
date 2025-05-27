@@ -1,3 +1,5 @@
+"use client"
+
 import React, { useState } from 'react';
 import { setCookie } from 'cookies-next/client';
 import {
